@@ -72,7 +72,7 @@
                                 <tr>
                                     <td></td>
                                     <td>
-                                        <select class="form-control fila" name="butaca[1][fila]" required="required">
+                                        <select class="form-control fila" name="butaca[{{$count}}][fila]" required="required">
                                             <option></option>
                                             @foreach(config('app.filas') as $fila)
                                                 <option @if($fila == $butaca->fila)selected="selected"@endif value="{{$fila}}">{{$fila}}</option>
@@ -80,7 +80,7 @@
                                         </select>
                                     </td>
                                     <td>
-                                        <select class="form-control columna" name="butaca[1][columna]" required="required">
+                                        <select class="form-control columna" name="butaca[{{$count++}}][columna]" required="required">
                                             <option></option>
                                             @foreach(config('app.columnas') as $columna)
                                                 <option @if($columna == $butaca->columna) selected="selected" @endif value="{{$columna}}">{{$columna}}</option>
@@ -90,7 +90,7 @@
                                     <td class="numButaca" style="text-align:center;">
                                         {{$butaca->fila}} - {{$butaca->columna}}
                                     </td>
-                                </tr>
+                                </tr>                               
                                 @endforeach
                             </tbody>
                         </table>
@@ -134,25 +134,52 @@
         });
         
         $('body').on('change','.fila, .columna',function(){
+            
+            var _token  = "{{csrf_token()}}";
+            var _method = "PUT"; 
+            
            $row = $(this).parent().parent();
            fila = ($row).find('.fila').val();
            columna = ($row).find('.columna').val();                       
            if(fila != '' && columna != ''){
-               
-               //valida si la butaca no esta seleccionada
-                if(validate(fila,columna) <= 1){
-                    ($row).find('.numButaca').html(fila+' - '+columna);
-                }//if
-                else{
-                    //alerta para indicar que la butaca ya esta seleccionada
-                    var msg = "{{trans('adminlte::adminlte.msgButacaOcupada')}}";
-                    alert(msg.replace('XX',fila+' - '+columna));
-                    
-                    //resetea la fila para seleccionar una butaca diferente
-                    ($row).find('.fila').val('');
-                    ($row).find('.columna').val('');
-                    ($row).find('.numButaca').html('');
-                }//else
+                $.ajax({
+                    headers: { 'X-CSRF-Token' : $('meta[name=_token]').attr('content') },
+                    url: "{{route('reservaciones.validateAjax')}}",
+                    type: 'POST',
+                    cache: false,
+                    data: {'_reserva':{{$reservacion->id}},'_fila':fila,'_columna':columna, '_token':_token,'_method':_method},
+                    datatype: 'html',
+                    beforeSend: function(){},
+                    success: function(data){
+                        //valida si la butaca no esta seleccionada
+                        if(data.count > 0){
+                            //alerta para indicar que la butaca ya esta seleccionada
+                            var msg = "{{trans('adminlte::adminlte.msgButacaOcupada2')}}";
+                            alert(msg.replace('XX',fila+' - '+columna));
+
+                            //resetea la fila para seleccionar una butaca diferente
+                            ($row).find('.fila').val('');
+                            ($row).find('.columna').val('');
+                            ($row).find('.numButaca').html('');                    
+                        }//if
+                        else if(validate(fila,columna) > 1){
+                            //alerta para indicar que la butaca ya esta seleccionada
+                            var msg = "{{trans('adminlte::adminlte.msgButacaOcupada')}}";
+                            alert(msg.replace('XX',fila+' - '+columna));
+
+                            //resetea la fila para seleccionar una butaca diferente
+                            ($row).find('.fila').val('');
+                            ($row).find('.columna').val('');
+                            ($row).find('.numButaca').html('');
+                        }//elseif
+                        else{
+                            ($row).find('.numButaca').html(fila+' - '+columna);
+                        }//else                
+                    },
+                    error: function(xhr,textStatus,thrownError){
+                        alert(xhr + "\n" + textStatus + "\n" + thrownError);
+                    }
+                }); //ajax 
            }//if
         });
 

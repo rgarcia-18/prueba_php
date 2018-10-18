@@ -54,13 +54,20 @@ class ReservacionController extends Controller
      */
     public function remove($id){
         try{
+            //inicia la transaccion
+            \DB::beginTransaction();
             //Elimina la reserva
             \App\butaca_reserva::where('id_reserva',$id)->delete();
             //libera las butacas
             \App\reserva::find($id)->delete();              
             //mensaje de exito
+            
+            //commit
+            \DB::commit();
             Session::flash('success',trans('adminlte::adminlte.reservaDelOk'));   
         }catch(QueryException $e){
+            //rollBack en caso de error
+            \DB::rollBack();
             Session::flash('error','error -> '.$e);
         }//cath
         //redireccionamiento al index del modulo
@@ -74,10 +81,11 @@ class ReservacionController extends Controller
      */
     public function edit($id){        
         //vista para crear las reservas
+        $count = 1;
         $users = \App\User::all();
         $reservacion = \App\reserva::find($id);        
         $butacas = \App\butaca_reserva::where('id_reserva',$reservacion->id)->get();
-        return view('reservaciones.edit',compact('reservacion','butacas','users'));
+        return view('reservaciones.edit',compact('reservacion','butacas','users','count'));
     }
     
     /**
@@ -99,6 +107,9 @@ class ReservacionController extends Controller
                 'numPersonas.required' => trans('adminlte::adminlte.numPersonasMsgRequired'),
                 'numPersonas.numeric' => trans('adminlte::adminlte.numPersonasMsgNumeric')
             ]);
+            
+            //inicia la transaccion
+            \DB::beginTransaction();
             
             //consulta la reserva para editarla
             $reserva = \App\reserva::find($request->id);            
@@ -123,12 +134,16 @@ class ReservacionController extends Controller
                     $butaca_reserva->id_reserva = $request->id;
                     $butaca_reserva->save();
                 }//foreach
-            }//if            
-             
+            }//if     
+                  
+            //confirma la transaccion
+            \DB::commit();
             //mensaje de exito
             Session::flash('success',trans('adminlte::adminlte.reservaEditOk'));
             
         }catch(QueryException $e){
+            //rollBack en caso de error
+            \DB::rollBack();
             Session::flash('error','error -> '.$e);
         }//cath
        
@@ -156,6 +171,9 @@ class ReservacionController extends Controller
                 'numPersonas.numeric' => trans('adminlte::adminlte.numPersonasMsgNumeric')
             ]);
             
+            //inicia la transaccion
+            \DB::beginTransaction();
+            
             //inserta la nueva reserva           
             $id = \DB::table('reservas')->insertGetId([
                 'id_user' => $request->usuario,
@@ -175,12 +193,16 @@ class ReservacionController extends Controller
                     $butaca_reserva->id_reserva = $id;
                     $butaca_reserva->save();
                 }//foreach
-            }//if            
-             
+            }//if     
+                
+            //confirma la transaccion
+            \DB::commit();
             //mensaje de exito
             Session::flash('success',trans('adminlte::adminlte.reservaOk'));
             
         }catch(QueryException $e){
+            //rollBack en caso de error
+            \DB::rollBack();
             Session::flash('error','error -> '.$e);
         }//cath
        
@@ -194,8 +216,13 @@ class ReservacionController extends Controller
      * @param Illuminate\Http\Request $request
      * @return json
      */
-    public function validateAjax(Request $request){        
-        $cout = \App\butaca_reserva::where('fila',$request->_fila)->where('columna',$request->_columna)->where('ind_estado',1)->get()->count();
+    public function validateAjax(Request $request){  
+        if($request->_reserva){
+            $cout = \App\butaca_reserva::where('fila',$request->_fila)->where('columna',$request->_columna)->where('id_reserva','<>',$request->_reserva)->where('ind_estado',1)->get()->count();    
+        }//if
+        else{
+            $cout = \App\butaca_reserva::where('fila',$request->_fila)->where('columna',$request->_columna)->where('ind_estado',1)->get()->count();    
+        }//else        
         return response()->json(['count' => $cout]);
     }
     

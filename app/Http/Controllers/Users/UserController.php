@@ -138,7 +138,8 @@ class UserController extends Controller
      */
     public function remove($id){
         try{
-            //whereIn
+            //inicia la transaccion
+            \DB::beginTransaction();
             $user = \App\User::find($id);
             $reservas = \App\reserva::where('id_user',$user->id)->pluck('id')->toArray();
             
@@ -151,9 +152,13 @@ class UserController extends Controller
             //Elimina el usuario
             $user->delete();     
             
+            //confirma la transaccion
+            \DB::commit();
             //mensaje de exito
             Session::flash('success',trans('adminlte::adminlte.usuarioDelOk'));   
         }catch(QueryException $e){
+            //rollBack en caso de error
+            \DB::rollBack();
             Session::flash('error','error -> '.$e);
         }//cath
         //redireccionamiento al index del modulo
